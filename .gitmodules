@@ -1,0 +1,3 @@
+[submodule "externals/ingredientExtractor"]
+	path = externals/ingredientExtractor
+	url = git://github.com/NYTimes/ingredient-phrase-tagger.git
