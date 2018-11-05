@@ -9,7 +9,13 @@ tmpFile = BASE_DIR + "tmp_ingredients.txt"
 tmpExtracted = BASE_DIR + "tmp_extracted.txt"
 outputFile = BASE_DIR + "extracted_ingredients.json"
 outputFilteredFile = BASE_DIR + "filtered_ingredients.json"
-STOPWORDS = {"fresh","cup","tbsp","tsp","large","small","lb","oz","pounds","ounces","tablespoons","teaspoons","grams","tbs","liter","litre","inch","centimeter","long"}
+STOPWORDS = {"fresh","cup","cups","tbsp","tsp","large","small",
+            "lb","lbs","oz","pound","ounce",
+            "pounds","ounces","tablespoons","tablespoon",
+            "teaspoons","teaspoon","grams","gram",
+            "tbs","liter","litre","inch","inches","centimeter",
+            "centimeters","long","pkg","sliced","g","c","t","kg","ml","tl","ts","gms",
+            "gm"}
 def extract_from_original():
     mapFileToIngredients = {}
     counter = 0
@@ -39,15 +45,17 @@ def filter_new():
     for filename in ingredients:
         setIngredients = set()
         for i in ingredients[filename]:
+            i = i.replace(u"\u00a0"," ")
             i = i.replace(u"\u00ee","i")
             i = i.replace(u"\u00f1","n")
             i = i.replace(u"\u00e4","a")
             i = i.replace(u"\u00e8","e")
             i = i.replace(u"\u00ae","")
             i = i.replace("-"," ")
+            i = i.replace("/"," ")
             i = ''.join([s for s in i if s.isalpha() or s == ' '])
-            words = [word.lower() for word in i.split(" ") if word.lower() not in STOPWORDS]                
-            i = " ".join(words)
+            words = [word.lower() for word in i.split(" ") if word.lower() not in STOPWORDS]      
+            i = " ".join([w for w in words if w!=""])
             setIngredients.add(i)
         newMap[filename] = [i for i in setIngredients]
     with open(outputFilteredFile,"w") as f:
