@@ -15,7 +15,7 @@ STOPWORDS = {"fresh","cup","cups","tbsp","tsp","large","small",
             "teaspoons","teaspoon","grams","gram",
             "tbs","liter","litre","inch","inches","centimeter",
             "centimeters","long","pkg","sliced","g","c","t","kg","ml","tl","ts","gms",
-            "gm"}
+            "gm","qts","qt"}
 def extract_from_original():
     mapFileToIngredients = {}
     counter = 0
