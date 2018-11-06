@@ -27,17 +27,17 @@ class Net(nn.Module):
         self.num_labels=NUM_LABELS
         self.conv1 = nn.Conv2d(3, 10, kernel_size=5,padding=2)
         self.conv2 = nn.Conv2d(10, 20, kernel_size=5,padding=2)
-        self.fc1 = nn.Linear(41*62*20, 10000)
-        self.fc2 = nn.Linear(10000, NUM_LABELS)
+        self.fc1 = nn.Linear(41*62*20, 5000)
+        self.fc2 = nn.Linear(5000, NUM_LABELS)
 
     def forward(self, x):
-        print("x",x.size())
+        # print("x",x.size())
         # print("conv1",self.conv1(x).size())
         x = F.relu(F.max_pool2d(self.conv1(x), 2)) #input 2, 3, 167, 250
-        print(x.size())
+        # print(x.size())
         x = F.relu(F.max_pool2d(self.conv2(x), 2)) #size 2, 10, 83, 125
-        print(x.size())
-        print("after",x.size()) 
+        # print(x.size())
+        # print("after",x.size()) 
         x = x.view(-1, 41*62*20) # 41, 62
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
@@ -45,6 +45,7 @@ class Net(nn.Module):
         return x
 
 def train(model, device, train_loader, optimizer, epoch):
+    print("train_loader",len(train_loader))
     model.train()
     sum_num_correct = 0
     sum_loss = 0
@@ -63,8 +64,11 @@ def train(model, device, train_loader, optimizer, epoch):
             print("target")
             print([listIngredients[i] for i in range(len(target[batch])) if target[batch][i] == 1])
             print("output")
-            print(len(output[batch]))
-            print([listIngredients[i] for i in range(len(output[batch])) if output[batch][i] == 1])
+            # print(listIngredients[output[batch].max(0)[1]])
+            print([i for i in torch.topk(output[batch], 10, largest = True)])
+            print([listIngredients[i] for i in torch.topk(output[batch], 10, largest = True)[1]])
+            print(len([i for i in output[batch] if i!=0]))
+            # print([listIngredients[i] for i in range(len(output[batch])) if output[batch][i] == 1])
         # loss_function = nn.MultiLabelMarginLoss()
         loss = nn.MultiLabelMarginLoss()(output,target_var)
         # print(output)
@@ -78,7 +82,7 @@ def train(model, device, train_loader, optimizer, epoch):
         num_batches_since_log += 1
         loss.backward()
         optimizer.step()
-        if batch_idx % 100 == 0:
+        if batch_idx>-1: #% 100 == 0:
             print('Train Epoch: {} [{:05d}/{} ({:02.0f}%)]\tLoss: {:.6f}\tAccuracy: {:02.0f}%'.format(
                 epoch, batch_idx * len(data), len(train_loader.dataset),
                 100. * batch_idx / len(train_loader), sum_loss / num_batches_since_log, 
@@ -95,11 +99,17 @@ def test(model, device, test_loader, dataset_name="Test set"):
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
-            output = model(data)
-            test_loss += nn.MultiLabelMarginLoss()(output, target, reduction='sum').item() # sum up batch loss
+            target=torch.LongTensor(np.array(target.numpy(),np.long))
+            data_var=torch.autograd.Variable(data)
+            target_var=torch.autograd.Variable(target)
+            optimizer.zero_grad()
+
+            output = model(data_var)
+            # output = model(data)
+            test_loss += nn.MultiLabelMarginLoss()(output, target_var).item() # sum up batch loss
             # test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
-            pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
-            correct += pred.eq(target.view_as(pred)).sum().item()
+            # pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
+            # correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
     print('\n{}: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
@@ -113,7 +123,7 @@ def load_datasets(train_percent = .8):
     labels_tensor = []
     i=0
     for filename in usable_filenames:
-        if i<10:
+        if i<1000:
             print("file " + filename, end="\r")
             image_name = images_dir + "img" + filename +".jpg"
             label_name = labels_dir + filename +".out"
@@ -138,8 +148,8 @@ def training_procedure(train_dataset, test_dataset):
     args["seed"] = 73912
     args["no_cuda"] = False
     args["log_interval"] = 100
-    args["batch_size"] = 2
-    args["test-batch-size"] = 1000
+    args["batch_size"] = 100
+    args["test-batch-size"] = 100
 
     params = dict()
     params["epochs"] = 10
