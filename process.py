@@ -32,6 +32,10 @@ def get_data():
         sorted_ingredients.append((x, all_ingredients[x]))
     sorted_ingredients.sort(key=lambda x: -x[1])
 
+    ingredientnames = [x[0] for x in sorted_ingredients]
+    with open(BASE_DIR + "ingredientnames.out", "w+") as f:
+        f.write(str(ingredientnames))
+
     print(len(sorted_ingredients))
     if print_frequencies:
         print(sorted_ingredients)
