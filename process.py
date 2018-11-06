@@ -3,11 +3,19 @@ import json
 
 BASE_DIR = os.path.dirname(__file__)
 
-if "ingredient_vector" not in os.listdir():
-    os.mkdir("ingredient_vector")
-
+#-------------------------------------------------------------#
+########## CHANGE THIS ACCORDING TO OUTPUTS YOU WANT ##########
+#-------------------------------------------------------------#
+ingredient_count_threshold = 100
+WRITE_INGREDIENT_NAMES = False
 print_frequencies = False
-ingredient_count_threshold = 6
+OUTPUT_DIR = "ingredient_vector_threshold" + str(ingredient_count_threshold)
+#-------------------------------------------------------------#
+########## CHANGE THIS ACCORDING TO OUTPUTS YOU WANT ##########
+#-------------------------------------------------------------#
+
+if OUTPUT_DIR not in os.listdir():
+    os.mkdir(OUTPUT_DIR)
 
 def get_data():
 
@@ -16,7 +24,7 @@ def get_data():
         json_data.close()
     all_ingredients = {}
 
-    print(len(recipes))
+    print("number of recipes: " + str(len(recipes)))
     for x in recipes:
         ingredients = recipes[x]
         for y in ingredients:
@@ -32,9 +40,10 @@ def get_data():
         sorted_ingredients.append((x, all_ingredients[x]))
     sorted_ingredients.sort(key=lambda x: -x[1])
 
-    ingredientnames = [x[0] for x in sorted_ingredients]
-    with open(BASE_DIR + "ingredientnames.out", "w+") as f:
-        f.write(str(ingredientnames))
+    if WRITE_INGREDIENT_NAMES:
+        ingredientnames = [x[0] for x in sorted_ingredients]
+        with open(BASE_DIR + "ingredientnames.out", "w+") as f:
+            f.write(str(ingredientnames))
 
     print(len(sorted_ingredients))
     if print_frequencies:
@@ -52,8 +61,8 @@ def get_data():
                 r[ingredient_id[y]] = 1
 
         num = x[4:-5]
-        print(BASE_DIR + "ingredient_vector/" + num + ".out")
-        with open(BASE_DIR + "ingredient_vector/" + num + ".out","w+") as f:
+        print(BASE_DIR + OUTPUT_DIR + "/" + num + ".out")
+        with open(BASE_DIR + OUTPUT_DIR + "/" + num + ".out","w+") as f:
              f.write(str(r))
         data.append((x,r))
     return data
