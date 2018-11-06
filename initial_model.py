@@ -16,26 +16,27 @@ BASE_DIR = os.path.dirname(__file__)
 images_dir = BASE_DIR + "resized_alias/"
 labels_dir = BASE_DIR + "ingredient_vector/"
 
+NUM_LABELS = 2240
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(3, 10, kernel_size=5)
-        self.conv2 = nn.Conv2d(10, 20, kernel_size=5)
-        # self.conv3 = nn.Conv2d(20, 30, kernel_size=5)
-        self.fc1 = nn.Linear(118*380, 32)
-        # self.fc2 = nn.Linear(32, 32)
-        self.fc3 = nn.Linear(32, 10)
+        self.num_labels=NUM_LABELS
+        self.conv1 = nn.Conv2d(3, 10, kernel_size=5,padding=2)
+        self.conv2 = nn.Conv2d(10, 20, kernel_size=5,padding=2)
+        self.fc1 = nn.Linear(41*62*20, 10000)
+        self.fc2 = nn.Linear(10000, NUM_LABELS)
 
     def forward(self, x):
         print("x",x.size())
-        print("conv1",self.conv1(x).size())
-        x = F.relu(F.max_pool2d(self.conv1(x), 2))
-        x = F.relu(F.max_pool2d(self.conv2(x), 2))
-        print("after",x.size())
-        # x = F.relu(F.max_pool2d(self.conv3(x), 2))
-        x = x.view(-1, 118*380)
+        # print("conv1",self.conv1(x).size())
+        x = F.relu(F.max_pool2d(self.conv1(x), 2)) #input 2, 3, 167, 250
+        print(x.size())
+        x = F.relu(F.max_pool2d(self.conv2(x), 2)) #size 2, 10, 83, 125
+        print(x.size())
+        print("after",x.size()) 
+        x = x.view(-1, 41*62*20) # 41, 62
         x = F.relu(self.fc1(x))
-        # x = F.relu(self.fc2(x))
+        x = F.relu(self.fc2(x))
         return F.log_softmax(x, dim=1)
 
 def train(model, device, train_loader, optimizer, epoch):
@@ -44,15 +45,25 @@ def train(model, device, train_loader, optimizer, epoch):
     sum_loss = 0
     num_batches_since_log = 0
     for batch_idx, (data, target) in enumerate(train_loader):
+        print("batch_idx", batch_idx, data, target)
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
-        output = model(data)
-        loss = nn.MultiLabelMarginLoss(output,target)
+
+        target=torch.LongTensor(np.array(target.numpy(),np.long))
+        data_var=torch.autograd.Variable(data)
+        target_var=torch.autograd.Variable(target)
+
+        output = model(data_var)
+        # loss_function = nn.MultiLabelMarginLoss()
+        loss = nn.MultiLabelMarginLoss()(output,target_var)
+        # print(output)
+        # print(target_var)
         # loss = F.nll_loss(output, target)
-        pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
-        correct = pred.eq(target.view_as(pred)).sum().item()
-        sum_num_correct += correct
-        sum_loss += loss.item()
+
+        # pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
+        # correct = pred.eq(target.view_as(pred)).sum().item()
+        # sum_num_correct += correct
+        # sum_loss += loss.item()
         num_batches_since_log += 1
         loss.backward()
         optimizer.step()
