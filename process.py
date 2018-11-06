@@ -52,7 +52,6 @@ def get_data():
         with open(BASE_DIR + "ingredient_vector/" + num + ".out","w+") as f:
              f.write(str(r))
         data.append((x,r))
-        return data
+    return data
 
-print(len(get_data()))
-print(get_data()[0:100])
+get_data()
