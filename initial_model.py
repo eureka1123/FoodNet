@@ -15,8 +15,12 @@ from PIL import Image
 BASE_DIR = os.path.dirname(__file__)
 images_dir = BASE_DIR + "resized_alias/"
 labels_dir = BASE_DIR + "ingredient_vector/"
-
+dict_file= BASE_DIR + "ingredientnames.out"
 NUM_LABELS = 2240
+
+with open(dict_file,"r") as f:
+    listIngredients = eval(f.read())
+
 class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
@@ -37,7 +41,8 @@ class Net(nn.Module):
         x = x.view(-1, 41*62*20) # 41, 62
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
-        return F.log_softmax(x, dim=1)
+        # return F.log_softmax(x, dim=1)
+        return x
 
 def train(model, device, train_loader, optimizer, epoch):
     model.train()
@@ -45,15 +50,21 @@ def train(model, device, train_loader, optimizer, epoch):
     sum_loss = 0
     num_batches_since_log = 0
     for batch_idx, (data, target) in enumerate(train_loader):
-        print("batch_idx", batch_idx, data, target)
+        # print("batch_idx", batch_idx, data, target)
         data, target = data.to(device), target.to(device)
-        optimizer.zero_grad()
 
         target=torch.LongTensor(np.array(target.numpy(),np.long))
         data_var=torch.autograd.Variable(data)
         target_var=torch.autograd.Variable(target)
+        optimizer.zero_grad()
 
         output = model(data_var)
+        for batch in range(len(target)):
+            print("target")
+            print([listIngredients[i] for i in range(len(target[batch])) if target[batch][i] == 1])
+            print("output")
+            print(len(output[batch]))
+            print([listIngredients[i] for i in range(len(output[batch])) if output[batch][i] == 1])
         # loss_function = nn.MultiLabelMarginLoss()
         loss = nn.MultiLabelMarginLoss()(output,target_var)
         # print(output)
@@ -63,7 +74,7 @@ def train(model, device, train_loader, optimizer, epoch):
         # pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
         # correct = pred.eq(target.view_as(pred)).sum().item()
         # sum_num_correct += correct
-        # sum_loss += loss.item()
+        sum_loss += loss.item()
         num_batches_since_log += 1
         loss.backward()
         optimizer.step()
@@ -85,7 +96,7 @@ def test(model, device, test_loader, dataset_name="Test set"):
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += nn.MultiLabelMarginLoss(output, target, reduction='sum').item() # sum up batch loss
+            test_loss += nn.MultiLabelMarginLoss()(output, target, reduction='sum').item() # sum up batch loss
             # test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
             pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
@@ -108,7 +119,7 @@ def load_datasets(train_percent = .8):
             label_name = labels_dir + filename +".out"
             img_tensor = transforms.ToTensor()(Image.open(image_name))
             images_tensor.append(img_tensor)
-            #visualize
+            # visualize
             # transforms.ToPILImage()(img_tensor).show()
             with open(label_name, "r") as f:
                 labels_tensor.append(torch.Tensor(eval(f.read())))
