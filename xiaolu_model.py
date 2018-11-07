@@ -36,12 +36,12 @@ class Net(nn.Module):
     def __init__(self):
         super(Net, self).__init__()
         self.num_labels=NUM_LABELS
-        self.conv1 = nn.Conv2d(3, 20, kernel_size=5,padding=2)
-        self.conv2 = nn.Conv2d(20, 40, kernel_size=5,padding=2)
-        # self.conv3 = nn.Conv2d(40, 60, kernel_size=5,padding=2)
+        self.conv1 = nn.Conv2d(3, 30, kernel_size=5,padding=2)
+        self.conv2 = nn.Conv2d(30, 60, kernel_size=5,padding=2)
+        self.conv3 = nn.Conv2d(60, 80, kernel_size=5,padding=2)
 
         # self.conv3 = nn.Conv2d(64, 128, kernel_size=5,padding=2)
-        self.fc1 = nn.Linear(25*37*40, 1000)
+        self.fc1 = nn.Linear(12*18*80, 1000)
         # self.fc1 = nn.Linear(41*62*40, 1000)
         self.fc2 = nn.Linear(1000, NUM_LABELS)
 
@@ -52,15 +52,15 @@ class Net(nn.Module):
         print(x.size())
         x = F.relu(F.max_pool2d(self.conv2(x), 2)) #size 2, 10, 83, 125
         print(x.size())
-        # x = F.relu(F.max_pool2d(self.conv3(x), 2)) #size 2, 10, 20, 31
+        x = F.relu(F.max_pool2d(self.conv3(x), 2)) #size 2, 10, 20, 31
         # print(x.size())
         print("after",x.size()) 
-        x = x.view(-1, 25*37*40) 
+        x = x.view(-1, 12*18*80) 
 
         # x = x.view(-1, 41*62*40) 
         # x = x.view(-1, 40*31*128) 
 
-        x = self.fc1(x)
+        x = F.relu(self.fc1(x))
         x = self.fc2(x)
         # x = self.fc2(x)
         print("done",x.size()) 
@@ -88,16 +88,13 @@ def train(model, device, train_loader, optimizer, epoch):
         #pos_weight = torch.Tensor([200 for i in range(373)])
         loss = nn.BCEWithLogitsLoss(reduction='sum',pos_weight = POS_WEIGHT)(output,target_var)
         pred = torch.sigmoid(output)
-        if batch_idx %5 == 0:
-            for batch in range(len(target)):
-                # if batch%10 == 0:
-                print("target")
-                print([listIngredients[i] for i in range(len(target[batch])) if target[batch][i] == 1])
-                print("output")
-                # print(output[batch])
-                print([i for i in torch.topk(pred[batch], 10, largest = True)])
-                print([listIngredients[i] for i in torch.topk(pred[batch], 10, largest = True)[1]])
-                print(len([i for i in pred[batch] if i!=0]))
+        # if batch_idx %5 == 0:
+        for batch in range(len(target)):
+            # if batch%10 == 0:
+            print("target: ",[listIngredients[i] for i in range(len(target[batch])) if target[batch][i] == 1])
+            print("output: ",[listIngredients[i] for i in torch.topk(pred[batch], 10, largest = True)[1]])
+            print([i for i in torch.topk(pred[batch], 10, largest = True)])
+            print("----------------------------------------------------------------------")
         # print(output)
         # print(target_var)
         # loss = F.nll_loss(output, target)
@@ -123,6 +120,8 @@ def test(model, device, test_loader, dataset_name="Test set"):
     model.eval()
     test_loss = 0
     correct = 0
+    print("----------------------------------------------------------------------")
+    print("TEST")
     with torch.no_grad():
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
@@ -133,7 +132,17 @@ def test(model, device, test_loader, dataset_name="Test set"):
 
             output = model(data_var)
             # output = model(data)
-            test_loss += nn.BCEWithLogitsLoss()(output, target_var).item() # sum up batch loss
+            pred = torch.sigmoid(output)
+            for batch in range(len(target)):
+            # if batch%10 == 0:
+                print("target: ",[listIngredients[i] for i in range(len(target[batch])) if target[batch][i] == 1])
+                print("output: ",[listIngredients[i] for i in torch.topk(pred[batch], 10, largest = True)[1]])
+                # print(output[batch])
+                print("prob: ",[i for i in torch.topk(pred[batch], 10, largest = True)])
+                print("----------------------------------------------------------------------")
+
+            # test_loss += nn.BCEWithLogitsLoss()(output, target_var).item() # sum up batch loss
+            test_loss += nn.BCEWithLogitsLoss(reduction='sum',pos_weight = POS_WEIGHT)(output,target_var).item()
 
             # test_loss += nn.MultiLabelSoftMarginLoss()(output, target_var).item() # sum up batch loss
             # test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
@@ -155,10 +164,10 @@ def load_datasets(train_percent = .8):
         transforms.Resize(100),
         # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        # transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
+        transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
     ])
     for filename in usable_filenames:
-        if i<10000:
+        if i<500:
             print("file " + filename, end="\r")
             image_name = images_dir + "img" + filename +".jpg"
             label_name = labels_dir + filename +".out"
@@ -184,10 +193,10 @@ def training_procedure(train_dataset, test_dataset):
     args["no_cuda"] = False
     args["log_interval"] = 100
     args["batch_size"] = 20
-    args["test-batch-size"] = 100
+    args["test-batch-size"] = 20
 
     params = dict()
-    params["epochs"] = 10
+    params["epochs"] = 50
     params["lr"] = 0.01
 
     torch.manual_seed(args["seed"])
