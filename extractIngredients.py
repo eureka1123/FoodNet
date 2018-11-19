@@ -1,7 +1,7 @@
 import os
 import json
 
-from ingredient_phrase_tagger.training import utils
+from externals.ingredientExtractor.ingredient_phrase_tagger.training import utils
 
 BASE_DIR = os.path.dirname(__file__)
 METADATA = BASE_DIR + "Yummly28K/metadata27638"
