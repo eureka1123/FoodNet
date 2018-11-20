@@ -1,5 +1,6 @@
 import os
 import json
+import numpy as np
 
 BASE_DIR = os.path.dirname(__file__)
 METADATA = BASE_DIR + "Yummly28K/metadata27638/"
@@ -58,17 +59,15 @@ def filter_cuisines():
 
 	with open(filtered_file, "w") as f:
 		json.dump(filtered, f)
+# filter_cuisines()
 
-filter_cuisines()
-# with open(output_file) as f:
-# 	cuisines = json.load(f)
-# filtered = {}
-# for i in cuisines:
-# 	if i == "Indian" or i == "Chinese" or i == "Thai" or i == "Japanese" or i == "Vietnamese":
-# 		filtered.setdefault("Asian",0)
-# 		filtered["Asian"]+=cuisines[i]
-# 	filtered.setdefault(i,0)
-# 	filtered[i] += cuisines[i]
-# ordered = sorted([(cuisines[i],i) for i in filtered])[::-1]
-# # ordered = sorted([(cuisines[i],i) for i in cuisines])[::-1]
-# print(ordered)
+labels = []
+for file in os.listdir("cuisines_vector"):
+	print(file, end="\r")
+	with open ("cuisines_vector/"+file) as f:
+		label = eval(f.read())
+		labels.append([i for i in range(len(label)) if label[i] == 1][0])
+np.save("cuisines_labels",labels)
+
+
+
