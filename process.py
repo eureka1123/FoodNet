@@ -7,9 +7,9 @@ BASE_DIR = os.path.dirname(__file__)
 ########## CHANGE THIS ACCORDING TO OUTPUTS YOU WANT ##########
 #-------------------------------------------------------------#
 ingredient_count_threshold = 100
-WRITE_INGREDIENT_NAMES = False
+WRITE_INGREDIENT_NAMES = True
 print_frequencies = False
-OUTPUT_DIR = "ingredient_vector_threshold" + str(ingredient_count_threshold)
+OUTPUT_DIR = "new_ingredient_vector_threshold" #+ str(ingredient_count_threshold)
 #-------------------------------------------------------------#
 ########## CHANGE THIS ACCORDING TO OUTPUTS YOU WANT ##########
 #-------------------------------------------------------------#
@@ -19,7 +19,7 @@ if OUTPUT_DIR not in os.listdir():
 
 def get_data():
 
-    with open(BASE_DIR + "filtered_ingredients.json") as json_data:
+    with open(BASE_DIR + "new_filtered_ingredients.json") as json_data:
         recipes = json.load(json_data)
         json_data.close()
     all_ingredients = {}
@@ -42,7 +42,7 @@ def get_data():
 
     if WRITE_INGREDIENT_NAMES:
         ingredientnames = [x[0] for x in sorted_ingredients]
-        with open(BASE_DIR + "ingredientnames.out", "w+") as f:
+        with open(BASE_DIR + "new_ingredientnames.out", "w+") as f:
             f.write(str(ingredientnames))
 
     print(len(sorted_ingredients))
@@ -61,7 +61,7 @@ def get_data():
                 r[ingredient_id[y]] = 1
 
         num = x[4:-5]
-        print(BASE_DIR + OUTPUT_DIR + "/" + num + ".out")
+        # print(BASE_DIR + OUTPUT_DIR + "/" + num + ".out")
         with open(BASE_DIR + OUTPUT_DIR + "/" + num + ".out","w+") as f:
              f.write(str(r))
         data.append((x,r))
