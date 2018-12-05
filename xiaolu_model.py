@@ -14,19 +14,20 @@ from PIL import Image
 
 BASE_DIR = os.path.dirname(__file__)
 images_dir = BASE_DIR + "resized_alias/"
-labels_dir = BASE_DIR + "ingredient_vector_threshold100/"
+labels_dir = BASE_DIR + "new_ingredient_vector_threshold/"
 dict_file= BASE_DIR + "ingredientnames.out"
-freq_file= BASE_DIR + "filtered_100.json"
+freq_file= BASE_DIR + "filtered_few_correct.json"
 
 # NUM_LABELS = 2240
-NUM_LABELS = 373
+NUM_LABELS = 47
 
 usable_filenames = sorted(set([i[3:-4] for i in os.listdir(images_dir)]).intersection(set([i[:-4] for i in os.listdir(labels_dir)])))
 
-with open(dict_file,"r") as f:
-    listIngredients = eval(f.read())
+# with open(dict_file,"r") as f:
+#     listIngredients = eval(f.read())
 with open(freq_file,"r") as f:
     freqIngredients = json.load(f)
+listIngredients = [i for i in freqIngredients]
 POS_WEIGHT = torch.Tensor([(len(usable_filenames)-freqIngredients[i])/freqIngredients[i] for i in listIngredients])
 
 #100x149
@@ -46,15 +47,15 @@ class Net(nn.Module):
         self.fc2 = nn.Linear(1000, NUM_LABELS)
 
     def forward(self, x):
-        print("x",x.size())
+        # print("x",x.size())
         # print("conv1",self.conv1(x).size())
         x = F.relu(F.max_pool2d(self.conv1(x), 2)) #input 2, 3, 167, 250
-        print(x.size())
+        # print(x.size())
         x = F.relu(F.max_pool2d(self.conv2(x), 2)) #size 2, 10, 83, 125
-        print(x.size())
+        # print(x.size())
         x = F.relu(F.max_pool2d(self.conv3(x), 2)) #size 2, 10, 20, 31
         # print(x.size())
-        print("after",x.size()) 
+        # print("after",x.size()) 
         x = x.view(-1, 12*18*80) 
 
         # x = x.view(-1, 41*62*40) 
@@ -63,7 +64,7 @@ class Net(nn.Module):
         x = F.relu(self.fc1(x))
         x = self.fc2(x)
         # x = self.fc2(x)
-        print("done",x.size()) 
+        # print("done",x.size()) 
         # return F.log_softmax(x, dim=1)
         return x
 
@@ -91,10 +92,13 @@ def train(model, device, train_loader, optimizer, epoch):
         # if batch_idx %5 == 0:
         for batch in range(len(target)):
             # if batch%10 == 0:
-            print("target: ",[listIngredients[i] for i in range(len(target[batch])) if target[batch][i] == 1])
-            print("output: ",[listIngredients[i] for i in torch.topk(pred[batch], 10, largest = True)[1]])
-            print([i for i in torch.topk(pred[batch], 10, largest = True)])
-            print("----------------------------------------------------------------------")
+            train_target = [listIngredients[i] for i in range(len(target[batch])) if target[batch][i] == 1]
+            train_output = [listIngredients[i] for i in torch.topk(pred[batch], 10, largest = True)[1]]
+            sum_num_correct+=len([i for i in train_target if i in train_output])/len(train_target)
+            # print("train target: ",train_target)
+            # print("train output: ",train_output)
+            # print("train prob: ",[i for i in torch.topk(pred[batch], 10, largest = True)])
+            # print("----------------------------------------------------------------------")
         # print(output)
         # print(target_var)
         # loss = F.nll_loss(output, target)
@@ -135,22 +139,24 @@ def test(model, device, test_loader, dataset_name="Test set"):
             pred = torch.sigmoid(output)
             for batch in range(len(target)):
             # if batch%10 == 0:
-                print("target: ",[listIngredients[i] for i in range(len(target[batch])) if target[batch][i] == 1])
-                print("output: ",[listIngredients[i] for i in torch.topk(pred[batch], 10, largest = True)[1]])
+                test_target = [listIngredients[i] for i in range(len(target[batch])) if target[batch][i] == 1]
+                test_output = [listIngredients[i] for i in torch.topk(pred[batch], 10, largest = True)[1]]
+                correct+=len([i for i in test_target if i in test_output])/len(test_target)
+                print("test target: ",test_target)
+                print("test output: ",test_output)
                 # print(output[batch])
-                print("prob: ",[i for i in torch.topk(pred[batch], 10, largest = True)])
+                print("test prob: ",[i for i in torch.topk(pred[batch], 10, largest = True)])
                 print("----------------------------------------------------------------------")
 
             # test_loss += nn.BCEWithLogitsLoss()(output, target_var).item() # sum up batch loss
-            test_loss += nn.BCEWithLogitsLoss(reduction='sum',pos_weight = POS_WEIGHT)(output,target_var).item()
+            test_loss += nn.BCEWithLogitsLoss(reduction='sum')(output,target_var).item()
 
             # test_loss += nn.MultiLabelSoftMarginLoss()(output, target_var).item() # sum up batch loss
             # test_loss += F.nll_loss(output, target, reduction='sum').item() # sum up batch loss
             # pred = output.max(1, keepdim=True)[1] # get the index of the max log-probability
             # correct += pred.eq(target.view_as(pred)).sum().item()
-
     test_loss /= len(test_loader.dataset)
-    print('\n{}: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+    print('\n{}: Average test loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
         dataset_name,
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
@@ -162,22 +168,24 @@ def load_datasets(train_percent = .8):
     i=0
     transformations = transforms.Compose([
         transforms.Resize(100),
-        # transforms.RandomHorizontalFlip(),
+        transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize((0.5,0.5,0.5), (0.5,0.5,0.5))
     ])
     for filename in usable_filenames:
-        if i<500:
+        if i<3000:
             print("file " + filename, end="\r")
             image_name = images_dir + "img" + filename +".jpg"
             label_name = labels_dir + filename +".out"
-            img_tensor = transformations(Image.open(image_name))
-            images_tensor.append(img_tensor)
+            with open(label_name, "r") as f:
+                label = eval(f.read())
+            if sum(label)>2:
+                labels_tensor.append(torch.Tensor(label))
+                img_tensor = transformations(Image.open(image_name))
+                images_tensor.append(img_tensor)
             # visualize
             # transforms.ToPILImage()(img_tensor).show()
-            with open(label_name, "r") as f:
-                labels_tensor.append(torch.Tensor(eval(f.read())))
-            i+=1
+                i+=1
         else:
             break
 
@@ -196,8 +204,8 @@ def training_procedure(train_dataset, test_dataset):
     args["test-batch-size"] = 20
 
     params = dict()
-    params["epochs"] = 50
-    params["lr"] = 0.01
+    params["epochs"] = 30
+    params["lr"] = 0.0001
 
     torch.manual_seed(args["seed"])
     use_cuda = not args["no_cuda"] and torch.cuda.is_available()
